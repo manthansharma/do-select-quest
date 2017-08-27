@@ -1,1 +1,1 @@
-web: gunicorn smart_agriculture.wsgi --log-file -
+web: gunicorn doselect.wsgi --log-file -
