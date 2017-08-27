@@ -26,7 +26,7 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = ['127.0.0.1:8000', 'vast-sierra-24980.herokuapp.com']
+ALLOWED_HOSTS = ['127.0.0.1', 'vast-sierra-24980.herokuapp.com']
 
 # Application definition
 
@@ -84,9 +84,11 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
+STATIC_ROOT = os.path.join(BASE_DIR, 'images')
+print(STATIC_ROOT)
 STATIC_URL = '/images/'
 STATICFILES_DIRS = (
-    os.path.join(BASE_DIR, 'images/'),
+    STATIC_ROOT
 )
 
 # Simplified static file serving.

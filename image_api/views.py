@@ -183,8 +183,9 @@ class ImageDetail(View):
 @require_http_methods(["GET"])
 def generate_auth_token(request):
     token = uuid.uuid1()
-    os.makedirs(".{}{}/".format(settings.STATIC_URL, token.int))
-    open(".{}{}/index_0".format(settings.STATIC_URL, token.int), 'w').close()
+    os.makedirs("/{}/{}/".format(settings.STATIC_ROOT, token.int))
+    print("{}/{}/".format(settings.STATIC_ROOT, token.int))
+    open("{}/{}/index_0".format(settings.STATIC_ROOT, token.int), 'w').close()
     return JsonResponse({
         'token': token.hex,
         'image_dir': "./images/{}/".format(token.int)
@@ -201,8 +202,8 @@ def re_generate_auth_token(request):
             "error": "Not Authorised"
         }, status=401)
     new_token = uuid.uuid1()
-    os.rename(".{}{}/".format(settings.STATIC_URL, access_key.int),
-              ".{}{}/".format(settings.STATIC_URL, new_token.int))
+    os.rename("{}/{}/".format(settings.STATIC_ROOT, access_key.int),
+              "{}/{}/".format(settings.STATIC_ROOT, new_token.int))
     return JsonResponse({
         'token': new_token.hex,
         'image_dir': "./images/{}/".format(new_token.int)
