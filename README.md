@@ -1,6 +1,8 @@
 # DoSelect Quest
 Repo for Do Select Quest (Backend Developer)
 
+[![Run in Postman](https://run.pstmn.io/button.svg)](https://app.getpostman.com/run-collection/2a1ba5e77c455479741c)
+
 ## Rest API Documentation
 https://documenter.getpostman.com/view/2657815/doselect/6nBvVXt
 
