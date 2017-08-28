@@ -5,11 +5,15 @@ import uuid
 
 from PIL import Image
 from django.conf import settings
+from django.core.files.storage import FileSystemStorage
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+
+EXTENSION = ['.jpeg', '.jpg', '.png', '.gif']
+COMPRESSION_EXTENSION = ['.jpeg', '.jpg', '.png']
 
 
 def authenticate(access_key):
@@ -22,6 +26,26 @@ def authenticate(access_key):
         return None
     except TypeError:
         return None
+
+
+def save_image(image, path, extension):
+    with Image.open(image) as pil_image:
+        base_height = 1024
+        pil_image_size = pil_image.size
+
+        if extension in COMPRESSION_EXTENSION:
+            if pil_image_size[0] > 1536:
+                hpercent = (base_height / float(pil_image_size[0]))
+                wsize = int((float(pil_image_size[1]) * float(hpercent)))
+                pil_image = pil_image.resize((base_height, wsize),
+                                             Image.ANTIALIAS)
+
+            pil_image.save(path, save_all=True, quality=75, optimize=True)
+        else:
+            fs = FileSystemStorage()
+            fs.save(path, image)
+
+    return pil_image_size
 
 
 class ImageList(View):
@@ -62,6 +86,20 @@ class ImageList(View):
         return JsonResponse(response_data)
 
     def post(self, request, access_key):
+        image = request.FILES.get('image', default=None)
+
+        if image is None:
+            return JsonResponse({
+                "image": "This field is required with attached content be "
+                         "image files"
+            }, status=400)
+        extension = os.path.splitext(image.name)[1].lower()
+        if extension not in EXTENSION:
+            return JsonResponse({
+                "image": "Image format is not supported",
+                "supported_format": EXTENSION
+            }, status=400)
+
         filenum = fnmatch.filter(os.listdir("{}/{}".format(
             settings.IMAGE_ROOT, access_key.int)
         ), 'index_*')[0].split('_')[1]
@@ -72,21 +110,12 @@ class ImageList(View):
             "{}/{}/index_{}".format(settings.IMAGE_ROOT, access_key.int,
                                     int(filenum) + 1))
 
-        image = request.FILES.get('image', default=None)
-
-        if image is None:
-            return JsonResponse({
-                "image": "This field is required with attached content be "
-                         "image files"
-            }, status=400)
-
-        image_name = "{}_{}.{}".format(filenum, uuid.uuid4().hex,
-                                       image.name.split('.')[-1])
+        image_name = "{}_{}{}".format(filenum, uuid.uuid4().hex,
+                                      extension)
         image_path = "{}/{}/{}".format(
             settings.IMAGE_ROOT, access_key.int, image_name)
-        with Image.open(image) as pil_image:
-            pil_image_size = pil_image.size
-            pil_image.save(image_path, quality=85, optimize=True)
+
+        pil_image_size = save_image(image, image_path, extension)
 
         return JsonResponse({
             "image_id": filenum,
@@ -142,9 +171,6 @@ class ImageDetail(View):
         }, status=200)
 
     def post(self, request, pk, access_key, filename):
-        old_image_url = "{}/{}/{}".format(settings.IMAGE_ROOT,
-                                          access_key.int, filename)
-        os.remove(old_image_url)
         image = request.FILES.get('image', default=None)
 
         if image is None:
@@ -152,16 +178,30 @@ class ImageDetail(View):
                 "image": "This field is required with attached content be "
                          "image files"
             }, status=400)
-        image_name = "{}_{}.{}".format(pk, uuid.uuid4().hex,
-                                       image.name.split('.', 2)[-1])
+        extension = os.path.splitext(image.name)[1].lower()
+        if extension not in EXTENSION:
+            return JsonResponse({
+                "image": "Image format is not supported",
+                "supported_format": EXTENSION
+            }, status=400)
+
+        old_image_url = "{}/{}/{}".format(settings.IMAGE_ROOT,
+                                          access_key.int, filename)
+        os.remove(old_image_url)
+
+        if image is None:
+            return JsonResponse({
+                "image": "This field is required with attached content be "
+                         "image files"
+            }, status=400)
+        image_name = "{}_{}{}".format(pk, uuid.uuid4().hex,
+                                      extension)
         image_path = "{}/{}/{}".format(
             settings.IMAGE_ROOT, access_key.int, image_name
 
         )
 
-        with Image.open(image) as pil_image:
-            pil_image_size = pil_image.size
-            pil_image.save(image_path, quality=75, optimize=True)
+        pil_image_size = save_image(image, image_path, extension)
 
         return JsonResponse({
             "image_id": pk,
@@ -185,7 +225,6 @@ class ImageDetail(View):
 def generate_auth_token(request):
     token = uuid.uuid1()
     os.makedirs("{}/{}/".format(settings.IMAGE_ROOT, token.int))
-    print("{}/{}/".format(settings.IMAGE_ROOT, token.int))
     open("{}/{}/index_0".format(settings.IMAGE_ROOT, token.int), 'w').close()
     return JsonResponse({
         'token': token.hex,
