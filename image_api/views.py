@@ -5,7 +5,7 @@ import uuid
 
 from PIL import Image
 from django.conf import settings
-from django.core.files.storage import FileSystemStorage
+from django.core.files.storage import FileSystemStorage, default_storage
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -40,11 +40,11 @@ def save_image(image, path, extension):
                 pil_image = pil_image.resize((base_height, wsize),
                                              Image.ANTIALIAS)
 
-            pil_image.save(path, save_all=True, quality=75, optimize=True)
+            pil_image.save(path, quality=75, optimize=True)
         else:
-            fs = FileSystemStorage()
-            fs.save(path, image)
-
+            with open(path, 'wb+') as destination:
+                for chunk in image.chunks():
+                    destination.write(chunk)
     return pil_image_size
 
 
@@ -74,6 +74,7 @@ class ImageList(View):
                 pass
             else:
                 image_id = image.split('_')[0]
+
                 response_data["images"].append({
                     "image_id": image_id,
                     "url": request.build_absolute_uri(
@@ -117,6 +118,8 @@ class ImageList(View):
 
         pil_image_size = save_image(image, image_path, extension)
 
+        fs = FileSystemStorage()
+
         return JsonResponse({
             "image_id": filenum,
             "url": request.build_absolute_uri(
@@ -125,6 +128,7 @@ class ImageList(View):
                 "//{}{}/{}".format(settings.STATIC_URL,
                                    access_key.int, image_name)),
             "size": pil_image_size,
+            "created_time": fs.get_created_time(image_path),
         }, status=201)
 
 
@@ -161,6 +165,7 @@ class ImageDetail(View):
         with Image.open(uploaded_image_url) as pil_image:
             pil_image_size = pil_image.size
 
+        fs = FileSystemStorage()
         return JsonResponse({
             "image_id": pk,
             "url": request.build_absolute_uri(),
@@ -168,6 +173,7 @@ class ImageDetail(View):
                 "//{}{}/{}".format(settings.STATIC_URL,
                                    access_key.int, filename)),
             "size": pil_image_size,
+            "created_time": fs.get_created_time(uploaded_image_url),
         }, status=200)
 
     def post(self, request, pk, access_key, filename):
@@ -203,6 +209,7 @@ class ImageDetail(View):
 
         pil_image_size = save_image(image, image_path, extension)
 
+        fs = FileSystemStorage()
         return JsonResponse({
             "image_id": pk,
             "url": request.build_absolute_uri(
@@ -211,6 +218,7 @@ class ImageDetail(View):
                 "//{}{}/{}".format(settings.STATIC_URL,
                                    access_key.int, image_name)),
             "size": pil_image_size,
+            "created_time": fs.get_created_time(image_path),
         }, status=200)
 
     def delete(self, request, pk, access_key, filename):

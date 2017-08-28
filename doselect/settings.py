@@ -88,6 +88,7 @@ STATIC_URL = '/images/'
 STATICFILES_DIRS = (
     os.path.join(BASE_DIR, 'images'),
 )
+MEDIA_ROOT = os.path.join(BASE_DIR, 'images')
 
 # Simplified static file serving.
 # https://warehouse.python.org/project/whitenoise/
